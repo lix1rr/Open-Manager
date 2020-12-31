@@ -1,25 +1,27 @@
 ﻿using System;
+using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Interop;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
 
 namespace Open_Manager
 {
-	class ClipboardItem
+	public class ClipboardItem:Item
 	{
+		// Used as a key in a resource dictionary for a Conrol
+		public const ulong clipboardItemKey = 8317878212189737892;
+
 		public IDataObject dataObject;
-		public string typeString;
-		enum ViewingType { 
-			Image,
-			Text
-		};
-		ViewingType type;
-		object data;
-		//Bitmap when type is Image, string when type is text
+		public string shortDescription;
+		public string longDescription;
+		public DateTime dateTime; // Time in UTC when it was created
+		
+		public PreviewType type;
+		public object data;
+		//Bitmap when type is ImageSource, string when type is text
 		struct Pair {
 			public string dataFormat;
 			public string name;
@@ -29,6 +31,15 @@ namespace Open_Manager
 				this.name = name;
 			}
 		}
+		
+		/*override*/ public string ShortDescription {
+			get => shortDescription;
+		}
+		/*override*/ public string LongDescription {
+			get => longDescription;
+		}
+
+
 
 		// Maps data format strings to more readable MIME like type names, ones at the top have more priority
 		static Pair[] order =  {
@@ -63,36 +74,47 @@ namespace Open_Manager
 		// string when type is String
 		public ClipboardItem(IDataObject dataObject)
 		{
+			dateTime = DateTime.UtcNow;
 			this.dataObject = dataObject;
-			if ((data = dataObject.GetData(DataFormats.Bitmap)) != null)
+			if ((data = (ImageSource)dataObject.GetData(DataFormats.Bitmap)) != null)
 			{
-				type = ViewingType.Image;
+				type = PreviewType.Image;
 				
 			}
-			else if ((data = dataObject.GetData(DataFormats.StringFormat)) != null)
+			else if ((data = (string)dataObject.GetData(DataFormats.StringFormat)) != null)
 			{
-				type = ViewingType.Text;
+				type = PreviewType.Text;
 			}
 			else
 			{
 				throw new Exception("cannot make clipboard item");
 			}
+			shortDescription = "type=";
 			foreach (var item in order) {
 				if (dataObject.GetFormats().Contains(item.dataFormat))
 				{
-					typeString = item.name;
-					return;
+					shortDescription += item.name;
+					goto longDescInit;
 				}
 			}
-			typeString = "unknown/" + dataObject.GetFormats()[0];
-			
-			throw new Exception("cannot make clipboard item");
+			// line runs when a type name couldnt be found
+			shortDescription = "unknown/" + dataObject.GetFormats()[0];
+			longDescInit:
+			longDescription = "Windows data formats: ";
+			for (int i = 0; i < dataObject.GetFormats().Count(); i++)
+			{
+				if (i != 0)
+				{
+					longDescription += ", ";
+				}
+				longDescription += dataObject.GetFormats()[i];
+			}
+			var culture = CultureInfo.CurrentUICulture;
+			longDescription += ". Created at " + dateTime.ToString(culture) + " UTC, " + dateTime.ToLocalTime().ToString(culture) + " local time.";
 		}
 
 		public Grid MakeControl()
 		{
-			
-			Console.WriteLine("! Copy");
 			var grid = new Grid();
 			grid.Margin = new Thickness(0, 0, 0, 10);
 
@@ -108,39 +130,33 @@ namespace Open_Manager
 
 			var info = new TextBlock();
 			info.TextWrapping = TextWrapping.Wrap;
-			info.Inlines.Add(new Italic(new Run("type="+typeString)));
+			info.Inlines.Add(new Italic(new Run(shortDescription)));
 			stackPanel.Children.Add(info);
 
-			if (type == ViewingType.Text)
+			if (type == PreviewType.Text)
 			{
-				var text = new TextBlock();
-				text.FontFamily = new FontFamily("Consolas");
+				var text = new TextBox();
+				text.BorderBrush = new SolidColorBrush();
+				text.BorderThickness = new Thickness(0);
+				text.Background = new SolidColorBrush();
 				text.TextWrapping = TextWrapping.Wrap;
+				text.IsReadOnly = true;
+				text.FontFamily = new FontFamily("Consolas");
 				text.Text = (string)data;
 				stackPanel.Children.Add(text);
 			}
-			else if (type == ViewingType.Image)
+			else if (type == PreviewType.Image)
 			{
 				var image = new Image();
 				image.Source = (InteropBitmap)data;
 				stackPanel.Children.Add(image);
 			}
-
-			return grid;
-			/*
-			 * 
-			 <Grid>
-				<Border BorderBrush="#FFAAAAAA" BorderThickness="1" CornerRadius="5"/>
-				<StackPanel Margin="10">
-					<TextBlock>
-						<Italic>type="text":</Italic>
-					</TextBlock>
-					<TextBlock FontFamily="Consolas" TextWrapping="Wrap">I am a crippled dog with a spoon</TextBlock>
-					or
-					<Image Source="http://i.imgur.com/aIf7B0P.jpg" />
-				</StackPanel>		
-			</Grid>
-			*/
+			grid.Resources.Add(clipboardItemKey, this);
+			return grid;	
+		}
+		public Window MakeWindow()
+		{
+			return new PreviewWindow(this);
 		}
 	}
 }

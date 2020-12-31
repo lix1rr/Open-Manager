@@ -1,19 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Interop;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace Open_Manager
 {
@@ -26,6 +17,7 @@ namespace Open_Manager
 	{
 		static Dictionary<IntPtr, MainWindow> hwndsAndWindow = new Dictionary<IntPtr, MainWindow>();
 		List<ClipboardItem> clipboardItems = new List<ClipboardItem>();
+		PreviewWindow previewWindow;
 
 		[DllImport("User32.dll", CharSet = CharSet.Auto)]
 		public static extern IntPtr SetClipboardViewer(IntPtr hWndNewViewer);
@@ -34,9 +26,45 @@ namespace Open_Manager
 			InitializeComponent();
 			MouseDown += Window_MouseDown;
 			Loaded += Window_Loaded;
-
+			StateChanged += MainWindow_StateChanged;
+			Deactivated += MainWindow_Deactivated;
+			/*
+			CloseButton.MouseDown += CloseButton_MouseDown;
+			CloseButton.MouseEnter += CloseButton_MouseEnter;
+			CloseButton.MouseLeave += CloseButton_MouseLeave;
+			*/
 		}
-		
+
+		private void MainWindow_Deactivated(object sender, EventArgs e)
+		{
+			Close();
+		}
+
+		private void MainWindow_StateChanged(object sender, EventArgs e)
+		{
+			if (WindowState == WindowState.Minimized)
+			{
+				Close();
+
+			}
+		}
+
+		/*
+private void CloseButton_MouseLeave(object sender, MouseEventArgs e)
+{
+	Mouse.OverrideCursor = Cursors.Arrow;
+}
+
+private void CloseButton_MouseEnter(object sender, MouseEventArgs e)
+{
+	Mouse.OverrideCursor = Cursors.Hand;
+}
+
+private void CloseButton_MouseDown(object sender, RoutedEventArgs e)
+{
+	Close();
+}
+*/
 		private void Window_Loaded(object sender, RoutedEventArgs e)
 		{
 			Console.WriteLine("register hook");
@@ -52,7 +80,7 @@ namespace Open_Manager
 			if (e.ChangedButton == MouseButton.Left)
 				DragMove();
 		}
-		
+
 		private void OnCopy()
 		{
 			var dataObject = Clipboard.GetDataObject();
@@ -62,14 +90,26 @@ namespace Open_Manager
 			}
 			ClipboardItem item = new ClipboardItem(dataObject);
 			clipboardItems.Add(item);
-			var control = item.MakeControl();
+			var control = ((Item)item).MakeControl();
 			if (control != null)
 			{
-				
 				itemList.Children.Insert(0, control);
+				control.MouseDown += ClipboardItem_MouseDown;
 			}
 			
 		}
+
+		private void ClipboardItem_MouseDown(object sender, MouseButtonEventArgs e)
+		{
+			if (previewWindow != null)
+			{
+				previewWindow.Close();
+			}
+			var clipboardItem = (ClipboardItem) ((Grid)sender).FindResource(ClipboardItem.clipboardItemKey);
+			previewWindow = (PreviewWindow) clipboardItem.MakeWindow();
+			previewWindow.Show();
+		}
+
 		const int WM_DRAWCLIPBOARD = 0x0308;
 		private static IntPtr Window_WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
 		{

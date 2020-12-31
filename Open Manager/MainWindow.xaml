@@ -5,13 +5,21 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Open_Manager"
         mc:Ignorable="d"
-        Title="MainWindow" Height="400" Width="250"
+        Title="Open Manager" Height="400" Width="250"
 		WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent">
     <Grid>
+		
 		<Border BorderBrush="#FFAAAAAA" BorderThickness="2" CornerRadius="15" Background="White"/>
-
+		<!--<Grid Margin="10">
+			<Line X1="0" X2="8" Y1="0" Y2="8" StrokeThickness="2" Stroke="#FFAAAAAA"/>
+			<Line X1="0" X2="8" Y1="8" Y2="0" StrokeThickness="2" Stroke="#FFAAAAAA"/>
+		</Grid>-->
+		<!--Creates a button around the cross to receive click events-->
+		<!--<Canvas>
+			<TextBlock Margin="5" Width="18" Height="18" Background="#00000000" Name="CloseButton"></TextBlock>
+		</Canvas>-->
 		<Grid Margin="20">
 			<Grid.RowDefinitions>
 				<RowDefinition Height="{Binding ElementName=ScrollSection, Path=Height}"/>
